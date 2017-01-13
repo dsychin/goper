@@ -21,26 +21,27 @@ type Column struct {
 }
 
 var typemap map[string]string = map[string]string{
-	"int":       "*int64",
-	"integer":   "*int64",
-	"decimal":   "*float64", //fixme
-	"varchar":   "*string",
-	"text":      "*string",
-	"float":     "*float64",
-	"real":      "*float64",
-	"datetime":  "*string",
-	"timestamp": "*string",
-	"enum":      "*string",
-	"date":      "*string",
-	"double":    "float64",
+	"int":              "*int64",
+	"integer":          "*int64",
+	"decimal":          "*float64", //fixme
+	"varchar":          "*string",
+	"text":             "*string",
+	"float":            "*float64",
+	"real":             "*float64",
+	"datetime":         "*string",
+	"timestamp":        "*string",
+	"enum":             "*string",
+	"date":             "*string",
+	"double":           "float64",
 	"double precision": "*float64",
-	"boolean":   "*bool",
-	"char":      "*string",
-	"bit":       "*int64",
-	"longblob":  "*int64",
-	"blob":      "[]byte",
-	"bytea":     "[]byte",
-	"BIGINT":    "*int64",
+	"boolean":          "*bool",
+	"char":             "*string",
+	"bit":              "*int64",
+	"longblob":         "*int64",
+	"blob":             "[]byte",
+	"bytea":            "[]byte",
+	"BIGINT":           "*int64",
+	"table":            "",
 }
 
 // Return the go type a database column should be mapped to.
@@ -51,7 +52,7 @@ func (this *Column) GoType() string {
 			return value
 		}
 	}
-	panic("Unknown type" + this.DbType)
+	panic("Unknown type:" + this.DbType)
 }
 
 // A helper function that maps strings like product_variant to ProductVariant
