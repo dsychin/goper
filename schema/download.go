@@ -7,7 +7,7 @@ import (
 	"flag"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/ktat/goper"
+	"github.com/edocode/goper"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
@@ -28,7 +28,7 @@ func init() {
 	flag.StringVar(&dsn, "dsn", "", "database dsn like 'user:password@tcp(127.0.0.1:3306)/main'")
 	flag.StringVar(&driver, "driver", "mysql", "driver")
 	flag.StringVar(&schema, "schema", "main", "schema")
-	flag.StringVar(&outfile, "outfile_prefix", "", "prefix of file name ex: xxx specifys and xxx_func.go and xxx_schema.go will be generated")
+	flag.StringVar(&outfile, "outfile", "", "file name ex: xxx specifys and xxx.go will be generated")
 	flag.StringVar(&pkg, "package", "data", "package name")
 	flag.StringVar(&remove, "remove", "", "remove string from head of type name")
 	flag.BoolVar(&verbose, "verbose", false, "Print debugging")
@@ -55,29 +55,20 @@ func main() {
 		logger.Printf("Ping Worked\n")
 	}
 	var outSchema io.Writer
-	var outFunc io.Writer
 	if outfile == "" {
 		outSchema = os.Stdout
-		outFunc = os.Stdout
 	} else {
-		f, err := os.Create(outfile + "_schema.go")
+		f, err := os.Create(outfile)
 		if err != nil {
 			panic(err)
 		}
-		f2, err2 := os.Create(outfile + "_func.go")
-		if err2 != nil {
-			panic(err2)
-		}
 		outSchema = f
-		outFunc = f2
 
 		defer f.Close()
-		defer f2.Close()
 	}
 
 	writer := &goper.SchemaWriter{
 		Outfile:        outSchema,
-		OutfileFunc:    outFunc,
 		PackageName:    pkg,
 		RemoveFromType: remove,
 	}

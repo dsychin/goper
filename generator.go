@@ -21,7 +21,6 @@ func init() {
 type SchemaWriter struct {
 	PackageName    string
 	Outfile        io.Writer
-	OutfileFunc    io.Writer
 	RemoveFromType string
 	Tables         []*Table
 }
@@ -69,7 +68,7 @@ func (this *SchemaWriter) WriteFunc(table *Table) {
 
 	hasId := regexp.MustCompile("_id$")
 
-	fmt.Fprintf(this.OutfileFunc,
+	fmt.Fprintf(this.Outfile,
 		`
 func (this %s) Table() string {
     return "%s"
@@ -106,7 +105,7 @@ func (this %s) Get(id int) *%s {
 		cn := col.Name
 		ccn := CamelCase(cn)
 		if hasId.MatchString(col.Name) {
-			fmt.Fprintf(this.OutfileFunc,
+			fmt.Fprintf(this.Outfile,
 				`
 func (this %s) GetBy%s(id int) *[]%s {
     rows := []%s{}
@@ -197,7 +196,6 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 		this.Tables = append(this.Tables, t)
 		this.WriteType(t)
 	}
-	fmt.Fprintf(this.OutfileFunc, "package %s\n\n", this.PackageName)
 
 	// fmt.Fprintf(this.OutfileFunc, "import (\"fmt\")\n")
 	for _, table := range this.Tables {
