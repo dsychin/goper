@@ -17,6 +17,10 @@ func init() {
 	logger = log.New(ColourStream{os.Stderr}, " [XXXX] ", log.LstdFlags)
 }
 
+func upperSpecificName(str string) string {
+	return regexp.MustCompile("(Id|Url)$").ReplaceAllStringFunc(str, strings.ToUpper)
+}
+
 // A SchemaWriter writes a set of tables to the writer denoted by Outfile
 type SchemaWriter struct {
 	PackageName    string
@@ -103,7 +107,7 @@ func (this *%s) Get(id int) *%s {
 
 	for _, col := range table.Columns {
 		cn := col.Name
-		ccn := CamelCase(cn)
+		ccn := upperSpecificName(CamelCase(cn))
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
@@ -132,8 +136,7 @@ func (this *%s) GetBy%s(id int) *[]%s {
 func (this *SchemaWriter) WriteField(column *Column, maxln int) {
 	maxlnstr := strconv.Itoa(maxln)
 
-	name := CamelCase(column.Name)
-	// name = regexp.MustCompile("(Id)$").ReplaceAllStringFunc(name, strings.ToUpper)
+	name := upperSpecificName(CamelCase(column.Name))
 	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
 		name, column.GoType(), column.Name, column.Name)
 }
