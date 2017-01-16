@@ -70,11 +70,11 @@ func (this *SchemaWriter) WriteFunc(table *Table) {
 
 	fmt.Fprintf(this.Outfile,
 		`
-func (this %s) Table() string {
+func (this *%s) Table() string {
     return "%s"
 }
 
-func (this %s) Get(id int) *%s {
+func (this *%s) Get(id int) *%s {
     row := %s{}
     sql := "select * FROM %s WHERE id = ? LIMIT 1"
     err := db.Get(&row, sql, id)
@@ -107,7 +107,7 @@ func (this %s) Get(id int) *%s {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this %s) GetBy%s(id int) *[]%s {
+func (this *%s) GetBy%s(id int) *[]%s {
     rows := []%s{}
     sql := "select * FROM %s WHERE %s = ?"
     err := db.Select(&rows, sql, id)
