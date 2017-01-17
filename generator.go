@@ -74,14 +74,22 @@ func (this *SchemaWriter) WriteFunc(table *Table) {
 
 	fmt.Fprintf(this.Outfile,
 		`
+type %sDB struct {
+	SchemaContext
+}
+
+func (this *SchemaContext) %s() *%sDB {
+	return &%sDB{*this}
+}
+
 func (this *%s) Table() string {
     return "%s"
 }
 
-func (this *%s) Get(id int) *%s {
+func (this *%sDB) Get(id int) *%s {
     row := %s{}
     sql := "select * FROM %s WHERE id = ? LIMIT 1"
-    err := db.Get(&row, sql, id)
+    err := this.db.Get(&row, sql, id)
     if err != nil {
         if err.Error() == "sql: no rows in result set" {
             return nil
@@ -92,8 +100,10 @@ func (this *%s) Get(id int) *%s {
     return &row
 }
 `,
+		t,
+		ct, t, t,
 		ct, t,
-		ct, ct, ct, t,
+		t, ct, ct, t,
 	)
 	hasMultiId := 0
 	for _, table_column := range table.Columns {
@@ -111,10 +121,10 @@ func (this *%s) Get(id int) *%s {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%s) GetBy%s(id int) *[]%s {
+func (this *%sDB) GetBy%s(id int) *[]%s {
     rows := []%s{}
     sql := "select * FROM %s WHERE %s = ?"
-    err := db.Select(&rows, sql, id)
+    err := this.db.Select(&rows, sql, id)
     if err != nil {
         if err.Error() == "sql: no rows in result set" {
             return nil
@@ -126,7 +136,7 @@ func (this *%s) GetBy%s(id int) *[]%s {
 }
 
 `,
-				ct, ccn, ct, ct, t, cn,
+				t, ccn, ct, ct, t, cn,
 			)
 		}
 	}
@@ -138,7 +148,7 @@ func (this *SchemaWriter) WriteField(column *Column, maxln int) {
 
 	name := upperSpecificName(CamelCase(column.Name))
 	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
-		name, column.GoType(), column.Name, column.Name)
+		name, string(column.GoType()[1:]), column.Name, column.Name)
 }
 
 // Write an individual table field
@@ -164,10 +174,26 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 		return err
 	}
 	fmt.Fprintf(this.Outfile, "package %s\n\n", this.PackageName)
-	fmt.Fprintf(this.Outfile, "import \"github.com/jmoiron/sqlx\"\n\n")
-	fmt.Fprintf(this.Outfile, "type SchemaContext interface {\n")
-	fmt.Fprintf(this.Outfile, "\tDB() *sqlx.DB\n")
-	fmt.Fprintf(this.Outfile, "}\n\n")
+	fmt.Fprint(this.Outfile, `
+import (
+    "github.com/jmoiron/sqlx"
+    "fmt"
+)
+
+type SchemaContext struct {
+    db *sqlx.DB
+}
+func (this *SchemaContext) ConnectDB(user, password, host, database string) error {
+	if this.db != nil {
+		this.db.Close()
+		this.db = nil
+	}
+	db := sqlx.MustConnect("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", user, password, host, database))
+	this.db = db
+	return nil
+}
+
+`)
 	for tables.Next() {
 		var ignored sql.NullString
 		t := new(Table)
