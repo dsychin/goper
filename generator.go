@@ -67,21 +67,113 @@ func (this *SchemaWriter) WriteType(table *Table) {
 }
 
 func (this *SchemaWriter) WriteFunc(table *Table) {
-	ct := CamelCase(table.Name)
-	t := table.Name
+	tn := table.Name
+	ctn := CamelCase(tn)
 
 	hasId := regexp.MustCompile("_id$")
 
-	fmt.Fprintf(this.Outfile,
-		`
+	fmt.Fprintf(this.Outfile, `
+
 func (this *%s) Table() string {
     return "%s"
 }
+`, ctn, tn)
+	columns := make([]string, 0)
+	questions := make([]string, 0)
+	binds := make([]string, 0)
+	var has_create_time bool
+	var data_str string
+	for _, c := range table.Columns {
+		if c.DbType != "table" {
+			cn := c.Name
+			ccn := CamelCase(cn)
+			gotype := c.GoType()
+			if cn == "create_time" {
+				has_create_time = true
+			}
 
-func (this *%s) Get(id int) *%s {
+			if ccn != "UpdateTime" {
+				columns = append(columns, c.Name)
+				questions = append(questions, "?")
+				binds = append(binds, "data."+ccn)
+			}
+
+			data_str += fmt.Sprintf("\n        \"%s\": data[\"%s\"].(%s),", cn, cn, gotype)
+		}
+	}
+	create_time_check := ""
+	if has_create_time == true {
+		create_time_check = `
+    if this.CreateTime == "" {
+        t := time.Now().Format("2006-01-02 15:04:05")
+        insert_data["create_time"] = t
+    }
+`
+	}
+	make_columns_questions_binds_str := `
+    columns      := make([]string,0)
+    placeholders := make([]string,0)
+    insert_data  := make(map[string]interface{})
+`
+
+	other_columns := make([]string, 0)
+	other_placeholders := make([]string, 0)
+
+	for _, c := range table.Columns {
+		cn := c.Name
+		ccn := upperSpecificName(CamelCase(c.Name))
+		if c.GoType() != "table" {
+
+			var typecheck string
+			switch c.GoType() {
+			case "*int64":
+				typecheck = "0"
+			case "*string":
+				typecheck = "\"\""
+			case "":
+				continue
+			default:
+				log.Println(c.GoType())
+				panic(c.GoType())
+			}
+			if cn == "id" || cn == "create_time" || cn == "update_time" {
+				make_columns_questions_binds_str += fmt.Sprintf(`
+    if this.%s != %s {
+        columns      = append(columns, "%s")
+        placeholders = append(placeholders, ":%s")
+        insert_data["%s"] = this.%s
+    }
+`, ccn, typecheck, cn, cn, cn, ccn)
+			} else {
+				make_columns_questions_binds_str += fmt.Sprintf("    insert_data[\"%s\"] = this.%s\n", cn, ccn)
+				other_columns = append(other_columns, "\""+cn+"\"")
+				other_placeholders = append(other_placeholders, "\":"+cn+"\"")
+			}
+
+		}
+	}
+	make_columns_questions_binds_str += "    columns = append(columns, " + strings.Join(other_columns, ",") + ")\n"
+	make_columns_questions_binds_str += "    placeholders = append(placeholders, " + strings.Join(other_placeholders, ",") + ")\n"
+
+	fmt.Fprintf(this.Outfile, `
+func (this *%s) Insert (c *SchemaContext) (sql.Result, error) {
+    %s
+    %s
+    sql := "INSERT INTO %s ("+strings.Join(columns,",")+") VALUES ("+strings.Join(placeholders,",")+");"
+    return c.DB.NamedExec(sql, insert_data)
+}
+`,
+		ctn,
+		make_columns_questions_binds_str,
+		create_time_check,
+		tn)
+
+	fmt.Fprintf(this.Outfile, `
+
+func (this *%s) Get(c *SchemaContext, id int) *%s {
     row := %s{}
     sql := "select * FROM %s WHERE id = ? LIMIT 1"
-    err := db.Get(&row, sql, id)
+    err := c.DB.Get(&row, sql, id)
     if err != nil {
         if err.Error() == "sql: no rows in result set" {
             return nil
@@ -92,8 +184,7 @@ func (this *%s) Get(id int) *%s {
     return &row
 }
 `,
-		ct, t,
-		ct, ct, ct, t,
+		ctn, ctn, ctn, tn,
 	)
 	hasMultiId := 0
 	for _, table_column := range table.Columns {
@@ -111,10 +202,10 @@ func (this *%s) Get(id int) *%s {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%s) GetBy%s(id int) *[]%s {
+func (this *%s) GetBy%s(c *SchemaContext, id int) *[]%s {
     rows := []%s{}
     sql := "select * FROM %s WHERE %s = ?"
-    err := db.Select(&rows, sql, id)
+    err := c.DB.Select(&rows, sql, id)
     if err != nil {
         if err.Error() == "sql: no rows in result set" {
             return nil
@@ -126,7 +217,7 @@ func (this *%s) GetBy%s(id int) *[]%s {
 }
 
 `,
-				ct, ccn, ct, ct, t, cn,
+				ctn, ccn, ctn, ctn, tn, cn,
 			)
 		}
 	}
@@ -138,7 +229,7 @@ func (this *SchemaWriter) WriteField(column *Column, maxln int) {
 
 	name := upperSpecificName(CamelCase(column.Name))
 	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
-		name, column.GoType(), column.Name, column.Name)
+		name, string(column.GoType()[1:]), column.Name, column.Name)
 }
 
 // Write an individual table field
@@ -164,6 +255,8 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 		return err
 	}
 	fmt.Fprintf(this.Outfile, "package %s\n\n", this.PackageName)
+	fmt.Fprintf(this.Outfile, "import (\"database/sql\"\n \"time\"\n\"strings\")\n\n")
+
 	for tables.Next() {
 		var ignored sql.NullString
 		t := new(Table)
