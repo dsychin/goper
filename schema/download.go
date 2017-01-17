@@ -6,13 +6,14 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/edocode/goper"
+	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"log"
 	"os"
+	"os/exec"
 )
 
 var dsn string
@@ -77,5 +78,8 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		panic(err)
+	}
+	if outfile != "" {
+		exec.Command("go", "fmt", outfile).Run()
 	}
 }
