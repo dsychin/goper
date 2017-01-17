@@ -255,8 +255,10 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 		return err
 	}
 	fmt.Fprintf(this.Outfile, "package %s\n\n", this.PackageName)
-	fmt.Fprintf(this.Outfile, "import (\"database/sql\"\n \"time\"\n\"strings\")\n\n")
-
+	fmt.Fprintf(this.Outfile, "import (\"github.com/jmoiron/sqlx\"\n \"database/sql\"\n \"time\"\n\"strings\")\n\n")
+	fmt.Fprintf(this.Outfile, "type SchemaContext interface {\n")
+	fmt.Fprintf(this.Outfile, "\tDB() *sqlx.DB\n")
+	fmt.Fprintf(this.Outfile, "}\n\n")
 	for tables.Next() {
 		var ignored sql.NullString
 		t := new(Table)
