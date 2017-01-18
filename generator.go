@@ -85,7 +85,7 @@ func (this *SchemaContext) %s() *%sDB {
 }
 
 func (this *%sDB) Table() string {
-    return "%s"
+	return "%s"
 }
 `,
 		tn,
@@ -94,9 +94,9 @@ func (this *%sDB) Table() string {
 	)
 
 	make_columns_questions_binds_str := `
-    columns      := make([]string,0)
-    placeholders := make([]string,0)
-    insert_data  := make(map[string]interface{})
+	columns      := make([]string,0)
+	placeholders := make([]string,0)
+	insert_data  := make(map[string]interface{})
 `
 
 	other_columns := make([]string, 0)
@@ -124,41 +124,41 @@ func (this *%sDB) Table() string {
 			var embed string
 			if cn == this.CreateColumn {
 				embed = fmt.Sprintf(`
-        t := time.Now().Format("2006-01-02 15:04:05")
-        insert_data["%s"] = t
-        data.%s = t
+		t := time.Now().Format("2006-01-02 15:04:05")
+		insert_data["%s"] = t
+		data.%s = t
 `, cn, ccn)
 			} else {
-				embed = fmt.Sprintf("insert_data[\"%s\"] = data.%s", cn, ccn)
+				embed = fmt.Sprintf("		insert_data[\"%s\"] = data.%s", cn, ccn)
 			}
 			make_columns_questions_binds_str += fmt.Sprintf(`
-    if data.%s != %s {
-        columns      = append(columns, "%s")
-        placeholders = append(placeholders, ":%s")
-        %s
-    }
+	if data.%s != %s {
+		columns      = append(columns, "%s")
+		placeholders = append(placeholders, ":%s")
+%s
+	}
 `, ccn, typecheck, cn, cn, embed)
 		} else {
-			make_columns_questions_binds_str += fmt.Sprintf("    insert_data[\"%s\"] = data.%s\n", cn, ccn)
+			make_columns_questions_binds_str += fmt.Sprintf("	insert_data[\"%s\"] = data.%s\n", cn, ccn)
 			other_columns = append(other_columns, "\""+cn+"\"")
 			other_placeholders = append(other_placeholders, "\":"+cn+"\"")
 		}
 
 	}
-	make_columns_questions_binds_str += "    columns = append(columns, " + strings.Join(other_columns, ",") + ")\n"
-	make_columns_questions_binds_str += "    placeholders = append(placeholders, " + strings.Join(other_placeholders, ",") + ")\n"
+	make_columns_questions_binds_str += "	columns = append(columns, " + strings.Join(other_columns, ",") + ")\n"
+	make_columns_questions_binds_str += "	placeholders = append(placeholders, " + strings.Join(other_placeholders, ",") + ")\n"
 
 	fmt.Fprintf(this.Outfile, `
 func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
-    %s
-    sql := "INSERT INTO %s ("+strings.Join(columns,",")+") VALUES ("+strings.Join(placeholders,",")+");"
-    r, err = this.db.NamedExec(sql, insert_data)
-    var err2 error
-    data.ID, err2 = r.LastInsertId()
-    if err2 != nil {
-        panic(err2)
-    }
-    return
+%s
+	sql := "INSERT INTO %s ("+strings.Join(columns,",")+") VALUES ("+strings.Join(placeholders,",")+");"
+	r, err = this.db.NamedExec(sql, insert_data)
+	var err2 error
+	data.ID, err2 = r.LastInsertId()
+	if err2 != nil {
+		panic(err2)
+	}
+	return
 }
 `,
 		tn, ctn,
@@ -168,17 +168,17 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 	fmt.Fprintf(this.Outfile, `
 
 func (this *%sDB) Get(id int) *%s {
-    row := %s{}
-    sql := "select * FROM %s WHERE id = ? LIMIT 1"
-    err := this.db.Get(&row, sql, id)
-    if err != nil {
-        if err.Error() == "sql: no rows in result set" {
-            return nil
-        } else {
-            panic(err)
-        }
-    }
-    return &row
+	row := %s{}
+	sql := "SELECT * FROM %s WHERE id = ? LIMIT 1"
+	err := this.db.Get(&row, sql, id)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil
+		} else {
+			panic(err)
+		}
+	}
+	return &row
 }
 `,
 		tn, ctn,
@@ -202,17 +202,17 @@ func (this *%sDB) Get(id int) *%s {
 			fmt.Fprintf(this.Outfile,
 				`
 func (this *%sDB) GetBy%s(id int) *[]%s {
-    rows := []%s{}
-    sql := "select * FROM %s WHERE %s = ?"
-    err := this.db.Select(&rows, sql, id)
-    if err != nil {
-        if err.Error() == "sql: no rows in result set" {
-            return nil
-        } else {
-            panic(err)
-        }
-    }
-    return &rows
+	rows := []%s{}
+	sql := "SELECT * FROM %s WHERE %s = ?"
+	err := this.db.Select(&rows, sql, id)
+	if err != nil {
+		if err.Error() == "sql: no rows in result set" {
+			return nil
+		} else {
+			panic(err)
+		}
+	}
+	return &rows
 }
 
 `,
@@ -226,7 +226,7 @@ func (this *%sDB) GetBy%s(id int) *[]%s {
 func (this *SchemaWriter) WriteField(column *Column, maxln int) {
 	maxlnstr := strconv.Itoa(maxln)
 	name := upperSpecificName(CamelCase(column.Name))
-	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
+	fmt.Fprintf(this.Outfile, "	%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
 		name, string(column.GoType()[1:]), column.Name, column.Name)
 }
 
@@ -239,7 +239,7 @@ func (this *SchemaWriter) WriteTableField(column *Column, maxln int) {
 	}
 	maxlnstr := strconv.Itoa(maxln)
 
-	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
+	fmt.Fprintf(this.Outfile, "	%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
 		ccn, "*"+ccnType, column.Name, column.Name)
 }
 
@@ -255,15 +255,15 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 	fmt.Fprintf(this.Outfile, "package %s\n\n", this.PackageName)
 	fmt.Fprint(this.Outfile, `
 import (
-    "github.com/jmoiron/sqlx"
-    "database/sql"
-    "time"
-    "fmt"
-    "strings"
+	"database/sql"
+	"fmt"
+	"github.com/jmoiron/sqlx"
+	"strings"
+	"time"
 )
 
 type SchemaContext struct {
-    db *sqlx.DB
+	db *sqlx.DB
 }
 func (this *SchemaContext) ConnectDB(user, password, host, database string) error {
 	if this.db != nil {
