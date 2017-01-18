@@ -123,11 +123,22 @@ func (this *%sDB) Table() string {
 		if cn == "id" || cn == this.CreateColumn || cn == this.UpdateColumn {
 			var embed string
 			if cn == this.CreateColumn {
-				embed = fmt.Sprintf(`
+				switch c.GoType() {
+				case "*string":
+					embed = fmt.Sprintf(`
 		t := time.Now().Format("2006-01-02 15:04:05")
 		insert_data["%s"] = t
 		data.%s = t
 `, cn, ccn)
+				case "*int64":
+					embed = fmt.Sprintf(`
+		t := time.Now().Unix()
+		insert_data["%s"] = t
+		data.%s = t
+`, cn, ccn)
+				default:
+					panic("Unsupported type for create column: " + c.GoType())
+				}
 			} else {
 				embed = fmt.Sprintf("		insert_data[\"%s\"] = data.%s", cn, ccn)
 			}
@@ -312,7 +323,6 @@ func (this *SchemaContext) ConnectDB(user, password, host, database string) erro
 		this.WriteType(t)
 	}
 
-	// fmt.Fprintf(this.OutfileFunc, "import (\"fmt\")\n")
 	for _, table := range this.Tables {
 		this.WriteFunc(table)
 	}
