@@ -17,6 +17,12 @@ func init() {
 	logger = log.New(ColourStream{os.Stderr}, " [XXXX] ", log.LstdFlags)
 }
 
+func LCamelCase(str string) string {
+	str = CamelCase(str)
+	str = strings.ToLower(string(str[0])) + string(str[1:])
+	return str
+}
+
 func upperSpecificName(str string) string {
 	return regexp.MustCompile("(Id|Url)$").ReplaceAllStringFunc(str, strings.ToUpper)
 }
@@ -70,6 +76,7 @@ func (this *SchemaWriter) WriteType(table *Table) {
 
 func (this *SchemaWriter) WriteFunc(table *Table) {
 	tn := table.Name
+	lctn := LCamelCase(tn)
 	ctn := CamelCase(tn)
 
 	hasId := regexp.MustCompile("_id$")
@@ -88,9 +95,9 @@ func (this *%sDB) Table() string {
 	return "%s"
 }
 `,
-		tn,
-		ctn, tn, tn,
-		tn, tn,
+		lctn,
+		ctn, lctn, lctn,
+		lctn, tn,
 	)
 
 	make_columns_questions_binds_str := `
@@ -172,7 +179,7 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 	return
 }
 `,
-		tn, ctn,
+		lctn, ctn,
 		make_columns_questions_binds_str,
 		tn)
 
@@ -192,7 +199,7 @@ func (this *%sDB) Get(id int) *%s {
 	return &row
 }
 `,
-		tn, ctn,
+		lctn, ctn,
 		ctn,
 		tn,
 	)
@@ -227,7 +234,7 @@ func (this *%sDB) GetBy%s(id int) *[]%s {
 }
 
 `,
-				tn, ccn, ctn, ctn, tn, cn,
+				lctn, ccn, ctn, ctn, tn, cn,
 			)
 		}
 	}
