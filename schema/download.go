@@ -24,6 +24,8 @@ var verbose bool
 var outfile string
 var pkg string
 var remove string
+var create_column string
+var update_column string
 
 func init() {
 	flag.StringVar(&dsn, "dsn", "", "database dsn like 'user:password@tcp(127.0.0.1:3306)/main'")
@@ -32,6 +34,8 @@ func init() {
 	flag.StringVar(&outfile, "outfile", "", "file name ex: xxx specifys and xxx.go will be generated")
 	flag.StringVar(&pkg, "package", "data", "package name")
 	flag.StringVar(&remove, "remove", "", "remove string from head of type name")
+	flag.StringVar(&create_column, "create_column", "create_time", "create time column name")
+	flag.StringVar(&update_column, "update_column", "update_time", "update time column name")
 	flag.BoolVar(&verbose, "verbose", false, "Print debugging")
 	flag.Parse()
 
@@ -72,6 +76,8 @@ func main() {
 		Outfile:        outSchema,
 		PackageName:    pkg,
 		RemoveFromType: remove,
+		CreateColumn:   create_column,
+		UpdateColumn:   update_column,
 	}
 	//os.Stdout.Write([]byte(schema))
 	err = writer.LoadSchema(driver, schema, conn)

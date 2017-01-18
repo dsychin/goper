@@ -27,6 +27,8 @@ type SchemaWriter struct {
 	Outfile        io.Writer
 	RemoveFromType string
 	Tables         []*Table
+	CreateColumn   string
+	UpdateColumn   string
 }
 
 // Write the schema
@@ -118,9 +120,9 @@ func (this *%sDB) Table() string {
 			log.Println(c.GoType())
 			panic(c.GoType())
 		}
-		if cn == "id" || cn == "create_time" || cn == "update_time" {
+		if cn == "id" || cn == this.CreateColumn || cn == this.UpdateColumn {
 			var embed string
-			if cn == "create_time" {
+			if cn == this.CreateColumn {
 				embed = fmt.Sprintf(`
         t := time.Now().Format("2006-01-02 15:04:05")
         insert_data["%s"] = t
