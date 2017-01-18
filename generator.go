@@ -90,38 +90,7 @@ func (this *%sDB) Table() string {
 		ctn, tn, tn,
 		tn, tn,
 	)
-	columns := make([]string, 0)
-	questions := make([]string, 0)
-	binds := make([]string, 0)
-	var has_create_time bool
-	var data_str string
-	for _, c := range table.Columns {
-		if c.DbType != "table" {
-			cn := c.Name
-			ccn := CamelCase(cn)
-			gotype := c.GoType()
-			if cn == "create_time" {
-				has_create_time = true
-			}
 
-			if ccn != "UpdateTime" {
-				columns = append(columns, c.Name)
-				questions = append(questions, "?")
-				binds = append(binds, "data."+ccn)
-			}
-
-			data_str += fmt.Sprintf("\n        \"%s\": data[\"%s\"].(%s),", cn, cn, gotype)
-		}
-	}
-	create_time_check := ""
-	if has_create_time == true {
-		create_time_check = `
-    if data.CreateTime == "" {
-        t := time.Now().Format("2006-01-02 15:04:05")
-        insert_data["create_time"] = t
-    }
-`
-	}
 	make_columns_questions_binds_str := `
     columns      := make([]string,0)
     placeholders := make([]string,0)
@@ -134,42 +103,51 @@ func (this *%sDB) Table() string {
 	for _, c := range table.Columns {
 		cn := c.Name
 		ccn := upperSpecificName(CamelCase(c.Name))
-		if c.GoType() != "table" {
 
-			var typecheck string
-			switch c.GoType() {
-			case "*int64":
-				typecheck = "0"
-			case "*string":
-				typecheck = "\"\""
-			case "":
-				continue
-			default:
-				log.Println(c.GoType())
-				panic(c.GoType())
+		var typecheck string
+		switch c.GoType() {
+		case "*int64":
+			typecheck = "0"
+		case "*string":
+			typecheck = "\"\""
+		case "":
+			continue
+		case "table":
+			continue
+		default:
+			log.Println(c.GoType())
+			panic(c.GoType())
+		}
+		if cn == "id" || cn == "create_time" || cn == "update_time" {
+			var embed string
+			if cn == "create_time" {
+				embed = fmt.Sprintf(`
+        t := time.Now().Format("2006-01-02 15:04:05")
+        insert_data["%s"] = t
+        data.%s = t
+`, cn, ccn)
+			} else {
+				embed = fmt.Sprintf("insert_data[\"%s\"] = data.%s", cn, ccn)
 			}
-			if cn == "id" || cn == "create_time" || cn == "update_time" {
-				make_columns_questions_binds_str += fmt.Sprintf(`
+			make_columns_questions_binds_str += fmt.Sprintf(`
     if data.%s != %s {
         columns      = append(columns, "%s")
         placeholders = append(placeholders, ":%s")
-        insert_data["%s"] = data.%s
+        %s
     }
-`, ccn, typecheck, cn, cn, cn, ccn)
-			} else {
-				make_columns_questions_binds_str += fmt.Sprintf("    insert_data[\"%s\"] = data.%s\n", cn, ccn)
-				other_columns = append(other_columns, "\""+cn+"\"")
-				other_placeholders = append(other_placeholders, "\":"+cn+"\"")
-			}
-
+`, ccn, typecheck, cn, cn, embed)
+		} else {
+			make_columns_questions_binds_str += fmt.Sprintf("    insert_data[\"%s\"] = data.%s\n", cn, ccn)
+			other_columns = append(other_columns, "\""+cn+"\"")
+			other_placeholders = append(other_placeholders, "\":"+cn+"\"")
 		}
+
 	}
 	make_columns_questions_binds_str += "    columns = append(columns, " + strings.Join(other_columns, ",") + ")\n"
 	make_columns_questions_binds_str += "    placeholders = append(placeholders, " + strings.Join(other_placeholders, ",") + ")\n"
 
 	fmt.Fprintf(this.Outfile, `
 func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
-    %s
     %s
     sql := "INSERT INTO %s ("+strings.Join(columns,",")+") VALUES ("+strings.Join(placeholders,",")+");"
     r, err = this.db.NamedExec(sql, insert_data)
@@ -183,7 +161,6 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 `,
 		tn, ctn,
 		make_columns_questions_binds_str,
-		create_time_check,
 		tn)
 
 	fmt.Fprintf(this.Outfile, `
@@ -246,7 +223,6 @@ func (this *%sDB) GetBy%s(id int) *[]%s {
 // Write an individual field
 func (this *SchemaWriter) WriteField(column *Column, maxln int) {
 	maxlnstr := strconv.Itoa(maxln)
-
 	name := upperSpecificName(CamelCase(column.Name))
 	fmt.Fprintf(this.Outfile, "\t%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
 		name, string(column.GoType()[1:]), column.Name, column.Name)

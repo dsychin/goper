@@ -42,6 +42,7 @@ var typemap map[string]string = map[string]string{
 	"bytea":            "[]byte",
 	"BIGINT":           "*int64",
 	"table":            "",
+	"set":              "*int64",
 }
 
 // Return the go type a database column should be mapped to.
