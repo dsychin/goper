@@ -275,6 +275,7 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 import (
 	"database/sql"
 	"fmt"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"strings"
 	"time"
