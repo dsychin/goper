@@ -274,25 +274,9 @@ func (this *SchemaWriter) LoadSchema(driver string, schema string, db *sql.DB) e
 	fmt.Fprint(this.Outfile, `
 import (
 	"database/sql"
-	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/jmoiron/sqlx"
 	"strings"
 	"time"
 )
-
-type SchemaContext struct {
-	db *sqlx.DB
-}
-func (this *SchemaContext) ConnectDB(user, password, host, database string) error {
-	if this.db != nil {
-		this.db.Close()
-		this.db = nil
-	}
-	db := sqlx.MustConnect("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s", user, password, host, database))
-	this.db = db
-	return nil
-}
 
 `)
 	for tables.Next() {
