@@ -6,14 +6,16 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"github.com/edocode/goper"
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"strings"
+
+	"github.com/edocode/goper"
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var dsn string
@@ -26,6 +28,7 @@ var pkg string
 var remove string
 var create_column string
 var update_column string
+var ignore_tables string
 
 func init() {
 	flag.StringVar(&dsn, "dsn", "", "database dsn like 'user:password@tcp(127.0.0.1:3306)/main'")
@@ -36,6 +39,7 @@ func init() {
 	flag.StringVar(&remove, "remove", "", "remove string from head of type name")
 	flag.StringVar(&create_column, "create_column", "create_time", "create time column name")
 	flag.StringVar(&update_column, "update_column", "update_time", "update time column name")
+	flag.StringVar(&ignore_tables, "ignore_tables", "", "specify table names separated with comma to exclude code generation target")
 	flag.BoolVar(&verbose, "verbose", false, "Print debugging")
 	flag.Parse()
 
@@ -72,12 +76,21 @@ func main() {
 		defer f.Close()
 	}
 
+	ignoreTables := make(map[string]bool)
+	if ignore_tables != "" {
+		tables := strings.Split(ignore_tables, ",")
+		for i := 0; i < len(tables); i++ {
+			ignoreTables[tables[i]] = true
+		}
+	}
+
 	writer := &goper.SchemaWriter{
 		Outfile:        outSchema,
 		PackageName:    pkg,
 		RemoveFromType: remove,
 		CreateColumn:   create_column,
 		UpdateColumn:   update_column,
+		IgnoreTables:   ignoreTables,
 	}
 	//os.Stdout.Write([]byte(schema))
 	err = writer.LoadSchema(driver, schema, conn)

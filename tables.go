@@ -40,7 +40,8 @@ var typemap map[string]string = map[string]string{
 	"longblob":         "*int64",
 	"blob":             "[]byte",
 	"bytea":            "[]byte",
-	"BIGINT":           "*int64",
+	"bigint":           "*uint64", // fixme
+	"tinyint":          "*int64",
 	"table":            "",
 	"set":              "*int64",
 }
@@ -49,7 +50,7 @@ var typemap map[string]string = map[string]string{
 // We always use pointers to handle null
 func (this *Column) GoType() string {
 	for key, value := range typemap {
-		if strings.Contains(strings.ToLower(this.DbType), key) {
+		if strings.Index(strings.ToLower(this.DbType), key) == 0 {
 			return value
 		}
 	}

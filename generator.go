@@ -35,6 +35,7 @@ type SchemaWriter struct {
 	Tables         []*Table
 	CreateColumn   string
 	UpdateColumn   string
+	IgnoreTables   map[string]bool
 }
 
 // Write the schema
@@ -54,7 +55,6 @@ func (this *SchemaWriter) WriteType(table *Table) {
 		if len(column.Name) > maxln {
 			maxln = len(column.Name)
 		}
-
 	}
 	var tableColumns []Column
 	for _, column := range table.Columns {
@@ -117,6 +117,8 @@ func (this *%sDB) Table() string {
 		switch c.GoType() {
 		case "*int64":
 			typecheck = "0"
+		case "*uint64":
+			typecheck = "0"
 		case "*string":
 			typecheck = "\"\""
 		case "":
@@ -124,7 +126,6 @@ func (this *%sDB) Table() string {
 		case "table":
 			continue
 		default:
-			log.Println(c.GoType())
 			panic(c.GoType())
 		}
 		if cn == "id" || cn == this.CreateColumn || cn == this.UpdateColumn {
@@ -185,7 +186,7 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 
 	fmt.Fprintf(this.Outfile, `
 
-func (this *%sDB) Get(id int) *%s {
+func (this *%sDB) Get(id uint64) *%s {
 	row := %s{}
 	sql := "SELECT * FROM %s WHERE id = ? LIMIT 1"
 	err := this.db.Get(&row, sql, id)
@@ -219,7 +220,7 @@ func (this *%sDB) Get(id int) *%s {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%sDB) GetBy%s(id int) *[]%s {
+func (this *%sDB) GetBy%s(id uint64) *[]%s {
 	rows := []%s{}
 	sql := "SELECT * FROM %s WHERE %s = ?"
 	err := this.db.Select(&rows, sql, id)
@@ -283,6 +284,9 @@ import (
 		var ignored sql.NullString
 		t := new(Table)
 		tables.Scan(&t.Name)
+		if _, ok := this.IgnoreTables[t.Name]; ok {
+			continue
+		}
 		cols, err := db.Query(dialect.ListColumns(schema, *t))
 		if err != nil {
 			return err
