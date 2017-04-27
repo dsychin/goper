@@ -173,7 +173,11 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 	sql := "INSERT INTO %s ("+strings.Join(columns,",")+") VALUES ("+strings.Join(placeholders,",")+");"
 	r, err = this.db.NamedExec(sql, insert_data)
 	var err2 error
-	data.ID, err2 = r.LastInsertId()
+	lastInsertID, err2 := r.LastInsertId()
+	if lastInsertID < 0 {
+		return nil, fmt.Errorf("%%d is invalid range ID from LastInsertId", lastInsertID)
+	}
+	data.ID = uint64(lastInsertID)
 	if err2 != nil {
 		panic(err2)
 	}
@@ -277,6 +281,7 @@ import (
 	"database/sql"
 	"strings"
 	"time"
+	"fmt"
 )
 
 `)

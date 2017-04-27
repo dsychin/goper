@@ -26,6 +26,8 @@ var typemap map[string]string = map[string]string{
 	"decimal":          "*float64", //fixme
 	"varchar":          "*string",
 	"text":             "*string",
+	"mediumtext":       "*string",
+	"longtext":         "*string",
 	"float":            "*float64",
 	"real":             "*float64",
 	"datetime":         "*string",
