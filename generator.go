@@ -27,6 +27,10 @@ func upperSpecificName(str string) string {
 	return regexp.MustCompile("(Id|Url)$").ReplaceAllStringFunc(str, strings.ToUpper)
 }
 
+func isMetaColumn(name string) bool {
+	return name == "id" || name == "delete_flg" || name == "create_time" || name == "update_time"
+}
+
 // A SchemaWriter writes a set of tables to the writer denoted by Outfile
 type SchemaWriter struct {
 	PackageName    string
@@ -80,6 +84,66 @@ func (this *SchemaWriter) WriteFunc(table *Table) {
 	ctn := CamelCase(tn)
 
 	hasId := regexp.MustCompile("_id$")
+
+	newEntityArgments := []string{}
+	newEntityParams := []string{}
+	createEntityArgments := []string{}
+	createEntityParams := []string{}
+	for _, c := range table.Columns {
+		goType := c.GoType()
+		if goType != "" {
+			goType := goType[1:]
+			cn := c.Name
+			ccn := upperSpecificName(CamelCase(c.Name))
+			lccn := upperSpecificName(LCamelCase(c.Name))
+
+			if !isMetaColumn(cn) {
+				arg := fmt.Sprintf("%s %s", lccn, goType)
+				newEntityArgments = append(newEntityArgments, arg)
+
+				param := fmt.Sprintf("\t\t%s: %s,", ccn, lccn)
+				newEntityParams = append(newEntityParams, param)
+			}
+
+			{
+				arg := fmt.Sprintf("%s %s", lccn, goType)
+				createEntityArgments = append(createEntityArgments, arg)
+
+				param := fmt.Sprintf("\t\t%s: %s,", ccn, lccn)
+				createEntityParams = append(createEntityParams, param)
+			}
+		}
+	}
+
+	fmt.Fprintf(this.Outfile,
+		`
+// New%s is for create a new entity.
+func New%s(%s) *%s {
+	return &%s{
+%s
+	}
+}
+
+// Create%s is for make a exist entity from any encoded value (eg. JSON).
+func Create%s(%s) *%s {
+	return &%s{
+%s
+	}
+}
+`,
+		ctn,
+		ctn,
+		strings.Join(newEntityArgments, ", "),
+		ctn,
+		ctn,
+		strings.Join(newEntityParams, "\n"),
+		ctn,
+		ctn,
+		strings.Join(createEntityArgments, ", "),
+		ctn,
+		ctn,
+		strings.Join(createEntityParams, "\n"),
+	)
 
 	fmt.Fprintf(this.Outfile,
 		`
