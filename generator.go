@@ -100,6 +100,18 @@ func (this *%sDB) Table() string {
 		lctn, tn,
 	)
 
+	for _, c := range table.Columns {
+		cn := c.Name
+		ccn := upperSpecificName(CamelCase(c.Name))
+
+		fmt.Fprintf(this.Outfile, `
+func (this *%sDB) Column%s() string {
+	return "%s"
+}
+`,
+			lctn, ccn, cn)
+	}
+
 	make_columns_questions_binds_str := `
 	columns      := make([]string,0)
 	placeholders := make([]string,0)
