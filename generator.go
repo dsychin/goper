@@ -63,7 +63,7 @@ func (this *SchemaWriter) WriteType(table *Table) {
 	var tableColumns []Column
 	for _, column := range table.Columns {
 		if column.DbType != "table" {
-			this.WriteField(&column, maxln)
+			this.WriteField(&column, maxln, table)
 		} else {
 			tableColumns = append(tableColumns, column)
 		}
@@ -76,6 +76,9 @@ func (this *SchemaWriter) WriteType(table *Table) {
 	}
 
 	fmt.Fprintf(this.Outfile, "}\n")
+
+	// ID type
+	fmt.Fprintf(this.Outfile, "\ntype %[1]sID uint64\n", CamelCase(table.Name))
 }
 
 func (this *SchemaWriter) WriteFunc(table *Table) {
@@ -90,7 +93,7 @@ func (this *SchemaWriter) WriteFunc(table *Table) {
 	createEntityArgments := []string{}
 	createEntityParams := []string{}
 	for _, c := range table.Columns {
-		goType := c.GoType()
+		goType := c.GoType(table)
 		if goType != "" {
 			goType := goType[1:]
 			cn := c.Name
@@ -188,26 +191,31 @@ func (this *%sDB) Column%s() string {
 	for _, c := range table.Columns {
 		cn := c.Name
 		ccn := upperSpecificName(CamelCase(c.Name))
+		goType := c.GoType(table)
 
 		var typecheck string
-		switch c.GoType() {
-		case "*int64":
-			typecheck = "0"
-		case "*uint64":
-			typecheck = "0"
-		case "*string":
-			typecheck = "\"\""
-		case "":
-			continue
-		case "table":
-			continue
-		default:
-			panic(c.GoType())
+		if strings.HasSuffix(goType, "ID") {
+			typecheck = goType[1:] + "(0)"
+		} else {
+			switch goType {
+			case "*int64":
+				typecheck = "0"
+			case "*uint64":
+				typecheck = "0"
+			case "*string":
+				typecheck = "\"\""
+			case "":
+				continue
+			case "table":
+				continue
+			default:
+				panic(goType)
+			}
 		}
 		if cn == "id" || cn == this.CreateColumn || cn == this.UpdateColumn {
 			var embed string
 			if cn == this.CreateColumn {
-				switch c.GoType() {
+				switch goType {
 				case "*string":
 					embed = fmt.Sprintf(`
 		t := time.Now().Format("2006-01-02 15:04:05")
@@ -221,7 +229,7 @@ func (this *%sDB) Column%s() string {
 		data.%s = t
 `, cn, ccn)
 				default:
-					panic("Unsupported type for create column: " + c.GoType())
+					panic("Unsupported type for create column: " + goType)
 				}
 			} else {
 				embed = fmt.Sprintf("		insert_data[\"%s\"] = data.%s", cn, ccn)
@@ -243,6 +251,13 @@ func (this *%sDB) Column%s() string {
 	make_columns_questions_binds_str += "	columns = append(columns, " + strings.Join(other_columns, ",") + ")\n"
 	make_columns_questions_binds_str += "	placeholders = append(placeholders, " + strings.Join(other_placeholders, ",") + ")\n"
 
+	var primaryKeyGoType string
+	for _, c := range table.Columns {
+		if c.Name == "id" {
+			primaryKeyGoType = c.GoType(table)[1:]
+			break
+		}
+	}
 	fmt.Fprintf(this.Outfile, `
 func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 %s
@@ -253,34 +268,35 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 	if lastInsertID < 0 {
 		return nil, fmt.Errorf("%%d is invalid range ID from LastInsertId", lastInsertID)
 	}
-	data.ID = uint64(lastInsertID)
+	data.ID = %s(lastInsertID)
 	if err2 != nil {
-		panic(err2)
+		return nil, err2
 	}
 	return
 }
 `,
 		lctn, ctn,
 		make_columns_questions_binds_str,
-		tn)
+		tn,
+		primaryKeyGoType)
 
 	fmt.Fprintf(this.Outfile, `
 
-func (this *%sDB) Get(id uint64) *%s {
+func (this *%sDB) Get(id %s) (*%s, error) {
 	row := %s{}
 	sql := "SELECT * FROM %s WHERE id = ? LIMIT 1"
 	err := this.db.Get(&row, sql, id)
 	if err != nil {
 		if err.Error() == "sql: no rows in result set" {
-			return nil
+			return nil, nil
 		} else {
-			panic(err)
+			return nil, err
 		}
 	}
-	return &row
+	return &row, nil
 }
 `,
-		lctn, ctn,
+		lctn, primaryKeyGoType, ctn,
 		ctn,
 		tn,
 	)
@@ -300,7 +316,7 @@ func (this *%sDB) Get(id uint64) *%s {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%sDB) GetBy%s(id uint64) *[]%s {
+func (this *%sDB) GetBy%s(id %s) *[]%s {
 	rows := []%s{}
 	sql := "SELECT * FROM %s WHERE %s = ?"
 	err := this.db.Select(&rows, sql, id)
@@ -315,18 +331,18 @@ func (this *%sDB) GetBy%s(id uint64) *[]%s {
 }
 
 `,
-				lctn, ccn, ctn, ctn, tn, cn,
+				lctn, ccn, ccn, ctn, ctn, tn, cn,
 			)
 		}
 	}
 }
 
 // Write an individual field
-func (this *SchemaWriter) WriteField(column *Column, maxln int) {
+func (this *SchemaWriter) WriteField(column *Column, maxln int, table *Table) {
 	maxlnstr := strconv.Itoa(maxln)
 	name := upperSpecificName(CamelCase(column.Name))
 	fmt.Fprintf(this.Outfile, "	%-"+maxlnstr+"s %-10s `json:\"%s\" db:\"%s\"`\n",
-		name, string(column.GoType()[1:]), column.Name, column.Name)
+		name, string(column.GoType(table)[1:]), column.Name, column.Name)
 }
 
 // Write an individual table field
