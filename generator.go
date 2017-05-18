@@ -316,8 +316,8 @@ func (this *%sDB) Get(id %s) (*%s, error) {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%sDB) GetBy%s(id %s) *[]%s {
-	rows := []%s{}
+func (this *%sDB) GetBy%s(id %s) []*%s {
+	rows := []*%s{}
 	sql := "SELECT * FROM %s WHERE %s = ?"
 	err := this.db.Select(&rows, sql, id)
 	if err != nil {
@@ -327,7 +327,7 @@ func (this *%sDB) GetBy%s(id %s) *[]%s {
 			panic(err)
 		}
 	}
-	return &rows
+	return rows
 }
 
 `,
