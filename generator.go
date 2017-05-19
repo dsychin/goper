@@ -284,10 +284,10 @@ func (this *%sDB) Insert (data *%s) (r sql.Result, err error) {
 
 func (this *%sDB) Get(id %s) (*%s, error) {
 	row := %s{}
-	sql := "SELECT * FROM %s WHERE id = ? LIMIT 1"
-	err := this.db.Get(&row, sql, id)
+	query := "SELECT * FROM %s WHERE id = ? AND delete_flg = 0 LIMIT 1"
+	err := this.db.Get(&row, query, id)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if err.Error() == sql.ErrNoRows.Error() {
 			return nil, nil
 		} else {
 			return nil, err
@@ -316,18 +316,18 @@ func (this *%sDB) Get(id %s) (*%s, error) {
 		if hasId.MatchString(col.Name) {
 			fmt.Fprintf(this.Outfile,
 				`
-func (this *%sDB) GetBy%s(id %s) []*%s {
+func (this *%sDB) GetBy%s(id %s) ([]*%s, error) {
 	rows := []*%s{}
-	sql := "SELECT * FROM %s WHERE %s = ?"
-	err := this.db.Select(&rows, sql, id)
+	query := "SELECT * FROM %s WHERE delete_flg = 0 AND %s = ?"
+	err := this.db.Select(&rows, query, id)
 	if err != nil {
-		if err.Error() == "sql: no rows in result set" {
-			return nil
+		if err.Error() == sql.ErrNoRows.Error() {
+			return nil, nil
 		} else {
-			panic(err)
+			return nil, err
 		}
 	}
-	return rows
+	return rows, nil
 }
 
 `,
