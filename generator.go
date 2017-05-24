@@ -212,30 +212,35 @@ func (this *%sDB) Column%s() string {
 				panic(goType)
 			}
 		}
-		if cn == "id" || cn == this.CreateColumn || cn == this.UpdateColumn {
+		if cn == "id" || cn == this.UpdateColumn {
+			embed := fmt.Sprintf("		insert_data[\"%s\"] = data.%s", cn, ccn)
+			make_columns_questions_binds_str += fmt.Sprintf(`
+	if data.%s != %s {
+		columns      = append(columns, "%s")
+		placeholders = append(placeholders, ":%s")
+%s
+	}
+`, ccn, typecheck, cn, cn, embed)
+		} else if cn == this.CreateColumn {
 			var embed string
-			if cn == this.CreateColumn {
-				switch goType {
-				case "*string":
-					embed = fmt.Sprintf(`
+			switch goType {
+			case "*string":
+				embed = fmt.Sprintf(`
 		t := time.Now().Format("2006-01-02 15:04:05")
 		insert_data["%s"] = t
 		data.%s = t
 `, cn, ccn)
-				case "*int64":
-					embed = fmt.Sprintf(`
+			case "*int64":
+				embed = fmt.Sprintf(`
 		t := time.Now().Unix()
 		insert_data["%s"] = t
 		data.%s = t
 `, cn, ccn)
-				default:
-					panic("Unsupported type for create column: " + goType)
-				}
-			} else {
-				embed = fmt.Sprintf("		insert_data[\"%s\"] = data.%s", cn, ccn)
+			default:
+				panic("Unsupported type for create column: " + goType)
 			}
 			make_columns_questions_binds_str += fmt.Sprintf(`
-	if data.%s != %s {
+	if data.%s == %s {
 		columns      = append(columns, "%s")
 		placeholders = append(placeholders, ":%s")
 %s
