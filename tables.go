@@ -50,12 +50,21 @@ var typemap map[string]string = map[string]string{
 
 // Return the go type a database column should be mapped to.
 // We always use pointers to handle null
-func (this *Column) GoType() string {
+func (this *Column) GoType(table *Table) string {
+	if this.Name == "id" {
+		return "*" + CamelCase(table.Name) + "ID"
+	}
+
+	if strings.HasSuffix(this.Name, "_id") {
+		return "*" + upperSpecificName(CamelCase(this.Name))
+	}
+
 	for key, value := range typemap {
 		if strings.Index(strings.ToLower(this.DbType), key) == 0 {
 			return value
 		}
 	}
+
 	panic("Unknown type:" + this.DbType)
 }
 
