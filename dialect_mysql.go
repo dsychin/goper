@@ -52,7 +52,7 @@ func (this MysqlDialect) ListTables(dbname string) string {
 table_schema = '%s' and table_type = 'BASE TABLE'`, dbname)
 }
 func (this MysqlDialect) ListColumns(dbname string, table Table) string {
-	return fmt.Sprintf(`select column_name, data_type from information_schema.columns
+	return fmt.Sprintf(`select column_name, column_type from information_schema.columns
 where table_schema = '%s' and table_name='%s'`,dbname, table.Name)
 }
 func (this MysqlDialect) ListCollections(dbname string, table Table) string {

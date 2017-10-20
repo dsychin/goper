@@ -22,7 +22,9 @@ type Column struct {
 
 var typemap map[string]string = map[string]string{
 	"int":              "*int64",
+	"int unsigned": 	"*uint64",
 	"integer":          "*int64",
+	"integer unsigned": "*uint64",
 	"decimal":          "*float64", //fixme
 	"varchar":          "*string",
 	"text":             "*string",
@@ -42,8 +44,10 @@ var typemap map[string]string = map[string]string{
 	"longblob":         "*int64",
 	"blob":             "[]byte",
 	"bytea":            "[]byte",
-	"bigint":           "*uint64", // fixme
+	"bigint unsigned":  "*uint64", // fixme
+	"bigint": 			"*int64",
 	"tinyint":          "*int64",
+	"tinyint unsigned": "*uint64",
 	"table":            "",
 	"set":              "*int64",
 }
@@ -59,9 +63,17 @@ func (this *Column) GoType(table *Table) string {
 		return "*" + upperSpecificName(CamelCase(this.Name))
 	}
 
+	actualTypeParts := strings.Split(strings.ToLower(this.DbType), " ")
 	for key, value := range typemap {
-		if strings.Index(strings.ToLower(this.DbType), key) == 0 {
-			return value
+		expectedTypeParts := strings.Split(key, " ")
+		match := true
+		if len(expectedTypeParts) == len(actualTypeParts) {
+			for i, portion := range actualTypeParts {
+				match = match && strings.Index(portion, expectedTypeParts[i]) == 0
+			}
+			if match {
+				return value
+			}
 		}
 	}
 
