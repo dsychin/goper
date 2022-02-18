@@ -202,6 +202,8 @@ func (this *%sDB) Column%s() string {
 				typecheck = "0"
 			case "*uint64":
 				typecheck = "0"
+			case "*float64":
+				typecheck = "0"
 			case "*string":
 				typecheck = "\"\""
 			case "":
