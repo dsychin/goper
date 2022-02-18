@@ -3,7 +3,7 @@ package goper
 import "testing"
 
 func TestDialect(t *testing.T) {
-	dialects := []string{"mysql", "sqlite"}
+	dialects := []string{"mysql", "sqlite3"}
 	for _, dialect := range dialects {
 		d := DialectByDriver(dialect)
 		if d == nil {
